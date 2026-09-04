@@ -11,6 +11,7 @@ class RecoveryAnalysisResult(BaseModel):
     candidates: List[CandidateAction]
     
 class PaymentContext(BaseModel):
+    model_config = {'extra': 'forbid'}
     amount: float
     failure_type: str
     retry_count: int
