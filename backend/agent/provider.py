@@ -62,11 +62,8 @@ class FakeLLMProvider(LLMProvider):
         )
 
 class OpenAIProvider(LLMProvider):
-    """Implementation for OpenAI. Requires openai package to be installed."""
+    """Implementation for OpenAI using Structured Outputs."""
     def get_decision(self, context: AgentContext, system_prompt: str) -> AgentDecision:
-        # In a real scenario, this would use the OpenAI API.
-        # Since we aren't spending money or using a real key in tests, this will raise
-        # an error if API key isn't provided or openai is missing.
         api_key = os.environ.get("LLM_API_KEY")
         if not api_key:
             raise ValueError("LLM_API_KEY environment variable not set")
@@ -77,18 +74,21 @@ class OpenAIProvider(LLMProvider):
             
             prompt = f"Context:\n{context.model_dump_json(indent=2)}"
             
-            response = client.chat.completions.create(
+            # Using Structured Outputs (client.beta.chat.completions.parse)
+            response = client.beta.chat.completions.parse(
                 model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                response_format={"type": "json_object"}
+                response_format=AgentDecision
             )
             
-            result_json = response.choices[0].message.content
-            data = json.loads(result_json)
-            return AgentDecision(**data)
+            decision = response.choices[0].message.parsed
+            if not decision:
+                raise ValueError("Model failed to parse structured output")
+                
+            return decision
             
         except Exception as e:
             raise Exception(f"OpenAI API Error: {str(e)}")

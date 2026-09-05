@@ -45,7 +45,33 @@ POLICY ENGINE (Authorizes or Blocks)
 EXECUTION (Future)
 ```
 
-## Quick Start (Phase 1)
+## Testing & LLM Configuration
+
+The project uses a provider abstraction (`LLMProvider`) to ensure the agent logic and tests can run reliably without incurring API costs.
+
+### Running Automated Tests
+By default, the `.env.example` sets `LLM_PROVIDER=fake`. This enables the `FakeLLMProvider` which returns mocked deterministic responses.
+**You do not need an OpenAI API key to run tests.**
+
+```powershell
+# Run tests and evaluation pipeline offline and for free:
+pytest tests/
+.\run_phase1.ps1
+```
+
+### Configuring the Real OpenAI Provider
+For live demo cases, you can enable the real OpenAI API integration. This will call the OpenAI API (e.g. `gpt-4o-mini`) using Structured Outputs to enforce candidate selection.
+
+To enable the real provider:
+1. Ensure the `openai` python package is installed (`pip install openai`).
+2. Copy `.env.example` to `.env` and configure:
+```text
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+LLM_API_KEY=sk-proj-your-real-key-here
+LLM_CONFIDENCE_THRESHOLD=0.70
+```
+> **Warning**: Never commit your `.env` file or hardcode your API key. The `.gitignore` prevents `.env` tracking.
 
 Set up the Python environment and run the complete Phase 1 pipeline:
 
