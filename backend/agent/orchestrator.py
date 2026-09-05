@@ -1,10 +1,14 @@
 import os
+import uuid
 from typing import Dict, Any
+from datetime import datetime, timezone
 
 from backend.recovery.schemas import PaymentContext
 from backend.recovery.engine import analyze_recovery
 from backend.policy.schemas import ExecutionState, PolicyConfig
 from backend.policy.engine import evaluate_policy
+from backend.execution.schemas import ExecutionResult
+from backend.verification.verifier import verify_execution
 
 from .schemas import AgentContext, CandidateInfo
 from .agent import RecoveryDecisionAgent
@@ -103,9 +107,43 @@ def process_failed_payment(
         policy_decision.requires_escalation = True
         policy_decision.reason = "Agent unavailable or failed"
     
-    # Return structured separation
+    # 6. Controlled Execution Layer
+    # Safety invariant: if policy is blocked, NEVER execute.
+    if policy_decision.allowed:
+        adapter_mode = os.environ.get("EXECUTION_MODE", "simulator").lower()
+        if adapter_mode == "razorpay_test":
+            from backend.razorpay.adapter import RazorpayExecutionAdapter
+            adapter = RazorpayExecutionAdapter()
+        else:
+            from backend.execution.adapter import SimulatorExecutionAdapter
+            adapter = SimulatorExecutionAdapter()
+            
+        execution_result_obj = adapter.execute(
+            action=policy_decision.action,
+            payment_context=recovery_context,
+            event_id=execution_state.event_id
+        )
+    else:
+        # Policy is blocked -> record non-execution
+        execution_result_obj = ExecutionResult(
+            execution_id=f"exec_blocked_{uuid.uuid4().hex[:8]}",
+            action=policy_decision.action,
+            status="blocked",
+            provider="none",
+            attempted_at=datetime.now(timezone.utc).isoformat(),
+            amount=recovery_context.amount,
+            success=False,
+            message=policy_decision.reason
+        )
+        
+    # 7. Verification Layer
+    verification_result_obj = verify_execution(execution_result_obj, record["payment_id"])
+    
+    # Return structured separation for audit trail
     return {
         "recovery_analysis": recovery_result.model_dump(),
         "agent_decision": agent_decision.model_dump(),
-        "policy_decision": policy_decision.model_dump()
+        "policy_decision": policy_decision.model_dump(),
+        "execution_result": execution_result_obj.model_dump(),
+        "verification_result": verification_result_obj.model_dump()
     }

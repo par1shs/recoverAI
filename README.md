@@ -4,17 +4,16 @@ RecoverAI helps merchants recover revenue from failed subscription payments usin
 
 > **Evaluation Caveat**: Results are measured on synthetic datasets modeled around the targeted failed-subscription-payment lifecycle. Separate development, held-out, and stress-test regimes are used to evaluate behavior and robustness. These results represent controlled simulation performance and are not claims of live-merchant performance.
 
-## Current Phase 3 Status
+## Current Phase 4 Status
 ### What is currently implemented:
 - **Deterministic Recovery Layer**: Calculates opportunity score, candidate actions, Expected Value (EV), and timing heuristics.
 - **Robust synthetic data generation**: Evaluates across development, held-out, and stress regimes.
-- **LLM Recovery Agent**: Interprets customer messages, support notes, and structured customer context to intelligently select among existing candidates. *The LLM recommends; the Policy Engine authorizes.* It cannot create new recovery actions, modify financial calculations, bypass policy rules, or directly execute payments. Includes safe deterministic fallback behavior when the LLM is unavailable.
-- **Deterministic Policy Engine**: A strict authorization layer. The LLM may recommend an action, but it cannot authorize or execute it. Policy rules enforce limits and idempotency. **Policy failure defaults to deny.**
+- **LLM Recovery Agent**: Interprets context to intelligently select among existing candidates. *The LLM recommends; the Policy Engine authorizes.* It includes safe deterministic fallback behavior and supports an explicitly-configurable OpenAI provider.
+- **Deterministic Policy Engine**: A strict authorization layer. Policy rules enforce limits and idempotency. **Policy failure defaults to deny.**
+- **Execution & Verification Adapters**: Policy-approved actions are forwarded to an execution adapter (`SimulatorExecutionAdapter` or `RazorpayExecutionAdapter`). Razorpay is strictly treated as a test-mode execution provider, not a decision-maker. Downstream, the verification layer audits the executed outcome. Blocked policy actions never reach execution.
 
 ### What it does NOT do yet:
-- **No autonomous execution**.
-- **No Razorpay integration**.
-- **No production payment actions**.
+- **No production payment actions** (Uses Simulator or Razorpay Test Mode only).
 - **No frontend dashboard**.
 
 ## Policy Test Matrix
@@ -29,20 +28,24 @@ RecoverAI helps merchants recover revenue from failed subscription payments usin
 | Duplicate event | `retry_now` | BLOCK |
 | Unsupported action | `unknown` | BLOCK |
 
-## Architecture (Phase 3)
+## Architecture (Phase 4)
 
 ```text
 FAILED PAYMENT
      ↓
 CONTEXT BUILDER
      ↓
-DETERMINISTIC RECOVERY ANALYSIS (Opportunity Score, Candidate Actions + EV + TIMING)
+DETERMINISTIC RECOVERY ANALYSIS (Candidates + EV + TIMING)
      ↓
 LLM AGENT (Interprets context & selects candidate)
      ↓
 POLICY ENGINE (Authorizes or Blocks)
      ↓
-EXECUTION (Future)
+EXECUTION ADAPTER (Simulator / Razorpay Test Mode)
+     ↓
+VERIFICATION LAYER
+     ↓
+AUDIT TRAIL
 ```
 
 ## Testing & LLM Configuration
@@ -50,14 +53,23 @@ EXECUTION (Future)
 The project uses a provider abstraction (`LLMProvider`) to ensure the agent logic and tests can run reliably without incurring API costs.
 
 ### Running Automated Tests
-By default, the `.env.example` sets `LLM_PROVIDER=fake`. This enables the `FakeLLMProvider` which returns mocked deterministic responses.
-**You do not need an OpenAI API key to run tests.**
+By default, the `.env.example` sets `LLM_PROVIDER=fake` and `EXECUTION_MODE=simulator`. This enables the `FakeLLMProvider` and the `SimulatorExecutionAdapter`.
+**You do not need an OpenAI API key or Razorpay keys to run tests.**
 
 ```powershell
 # Run tests and evaluation pipeline offline and for free:
 pytest tests/
 .\run_phase1.ps1
 ```
+
+### Manual Integration (Razorpay Test Mode)
+To run manually with Razorpay APIs, update your `.env`:
+```text
+EXECUTION_MODE=razorpay_test
+RAZORPAY_KEY_ID=your_test_id
+RAZORPAY_KEY_SECRET=your_test_secret
+```
+*Never use production credentials. Blocked actions will never reach the execution adapter. Razorpay Test Mode is treated strictly as an execution provider and is not a decision-maker. Simulated integration produces appropriate pending or recovered states.*
 
 ### Configuring the Real OpenAI Provider
 For live demo cases, you can enable the real OpenAI API integration. This will call the OpenAI API (e.g. `gpt-4o-mini`) using Structured Outputs to enforce candidate selection.
