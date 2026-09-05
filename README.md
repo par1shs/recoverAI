@@ -7,12 +7,12 @@ RecoverAI helps merchants recover revenue from failed subscription payments usin
 ## Quick Start
 
 ```powershell
-# 1. Setup
+# 1. Setup Backend
 python -m venv venv
 .\venv\Scripts\activate
 pip install pydantic pytest fastapi uvicorn httpx razorpay openai aiosqlite
 
-# 2. Run tests (no API keys required)
+# 2. Run backend tests (no API keys required)
 $env:PYTHONPATH="."
 pytest tests/
 
@@ -24,6 +24,20 @@ $env:EXECUTION_MODE="simulator"
 $env:LLM_PROVIDER="fake"
 uvicorn backend.app:app --reload
 ```
+API server runs at `http://127.0.0.1:8000`.
+
+### Dashboard Frontend
+
+The repository includes a Vite + React dashboard to visualize the pipeline (AI recommendation → Policy Engine → Execution).
+
+```powershell
+# Open a new terminal
+cd frontend
+npm install
+npm run dev
+```
+The dashboard runs at `http://localhost:5173`.
+
 
 The server starts at `http://127.0.0.1:8000`. Interactive API docs at `/docs`.
 
