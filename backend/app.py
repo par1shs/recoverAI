@@ -213,6 +213,9 @@ def execute_recovery_endpoint(req: PaymentRequest):
     # Call existing orchestrator (reuses all existing logic)
     result = process_failed_payment(record, execution_state)
     
+    # Inject context for frontend display without altering DB schema
+    result["context"] = record
+    
     # Persist for audit
     save_recovery_record(
         payment_id=req.payment_id,

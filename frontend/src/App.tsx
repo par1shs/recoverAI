@@ -3,16 +3,26 @@ import { fetchHealth, fetchRecoveries, fetchRecoveryDetail, fetchDemos, runDemoS
 import { Activity, ShieldAlert, ShieldCheck, Play, ArrowRight, Server, Box, CheckCircle2, XCircle, AlertCircle, Clock } from 'lucide-react';
 import clsx from 'clsx';
 
+const formatINR = (val: number | null | undefined) => {
+  if (val === null || val === undefined) return '₹0.00';
+  return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(val);
+};
+
 function StatusBadge({ status, type }: { status: string; type?: 'execution' | 'policy' | 'verification' }) {
   if (!status) return null;
-  const s = status.toLowerCase();
+  let s = status.toLowerCase();
+  
+  if (type === 'execution' && s === 'blocked') {
+    s = 'not called';
+  }
+
   let color = 'bg-border text-muted';
   
   if (type === 'policy') {
     color = s === 'true' || s === 'allowed' ? 'bg-success/10 text-success border-success/20' : 'bg-danger/10 text-danger border-danger/20';
   } else if (type === 'execution') {
     if (s === 'executed') color = 'bg-primary/10 text-primary border-primary/20';
-    if (s === 'blocked') color = 'bg-danger/10 text-danger border-danger/20';
+    if (s === 'not called') color = 'bg-muted/10 text-muted border-border';
     if (s === 'scheduled') color = 'bg-warning/10 text-warning border-warning/20';
     if (s === 'stopped') color = 'bg-muted/10 text-muted border-border';
   } else if (type === 'verification') {
@@ -23,7 +33,7 @@ function StatusBadge({ status, type }: { status: string; type?: 'execution' | 'p
 
   return (
     <span className={clsx('px-2 py-0.5 text-xs rounded border', color)}>
-      {status.toUpperCase()}
+      {s.toUpperCase()}
     </span>
   );
 }
@@ -114,11 +124,11 @@ export default function App() {
           <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-surface border border-border rounded-lg p-4">
               <div className="text-muted text-xs mb-1">Revenue at Risk</div>
-              <div className="text-2xl font-semibold">${atRiskAmt.toFixed(2)}</div>
+              <div className="text-2xl font-semibold">{formatINR(atRiskAmt)}</div>
             </div>
             <div className="bg-surface border border-border rounded-lg p-4">
               <div className="text-muted text-xs mb-1">Recovered Revenue</div>
-              <div className="text-2xl font-semibold text-success">${recoveredAmt.toFixed(2)}</div>
+              <div className="text-2xl font-semibold text-success">{formatINR(recoveredAmt)}</div>
             </div>
             <div className="bg-surface border border-border rounded-lg p-4">
               <div className="text-muted text-xs mb-1">Recovery Rate</div>
@@ -223,7 +233,7 @@ export default function App() {
                       )}
                     >
                       <td className="px-4 py-3 font-mono text-xs">{r.payment_id}</td>
-                      <td className="px-4 py-3">${r.amount?.toFixed(2)}</td>
+                      <td className="px-4 py-3">{formatINR(r.amount)}</td>
                       <td className="px-4 py-3 text-xs">{r.failure_type}</td>
                       <td className="px-4 py-3 font-mono text-xs text-primary">{r.selected_action}</td>
                       <td className="px-4 py-3">
@@ -250,18 +260,99 @@ export default function App() {
                     <div className="text-muted">Payment ID</div>
                     <div className="font-mono text-xs text-right">{selectedRecord.payment_id}</div>
                     <div className="text-muted">Amount</div>
-                    <div className="text-right">${selectedRecord.amount?.toFixed(2)}</div>
+                    <div className="text-right">{formatINR(selectedRecord.amount)}</div>
                     <div className="text-muted">Failure Type</div>
                     <div className="text-right">{selectedRecord.failure_type}</div>
                     <div className="text-muted">Retry Count</div>
-                    <div className="text-right">{selectedRecord.full_result?.recovery_analysis?.candidates ? selectedRecord.full_result.recovery_analysis.candidates.length > 0 ? "Analyzed" : "0" : "0"}</div>
+                    <div className="text-right">{selectedRecord.full_result?.context?.retry_count ?? selectedRecord.full_result?.recovery_analysis?.payment_context?.retry_count ?? "Unknown"} / 2</div>
+                    {selectedRecord.full_result?.context?.customer_tenure_months !== undefined && (
+                      <>
+                        <div className="text-muted">Customer Tenure</div>
+                        <div className="text-right">{selectedRecord.full_result.context.customer_tenure_months} mo</div>
+                      </>
+                    )}
+                    {selectedRecord.full_result?.context?.customer_message && (
+                      <>
+                        <div className="text-muted">Customer Message</div>
+                        <div className="text-right italic truncate" title={selectedRecord.full_result.context.customer_message}>
+                          "{selectedRecord.full_result.context.customer_message}"
+                        </div>
+                      </>
+                    )}
+                    {selectedRecord.full_result?.context?.support_note && (
+                      <>
+                        <div className="text-muted">Support Note</div>
+                        <div className="text-right truncate" title={selectedRecord.full_result.context.support_note}>
+                          {selectedRecord.full_result.context.support_note}
+                        </div>
+                      </>
+                    )}
                   </div>
-                  {selectedRecord.full_result?.agent_decision?.reason && (
-                    <div className="mt-3 p-3 bg-background rounded border border-border text-xs">
-                      <div className="text-muted mb-1">AI Reason:</div>
-                      {selectedRecord.full_result.agent_decision.reason}
+                </div>
+
+                <div className="h-px bg-border w-full" />
+                
+                <div>
+                  <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">Recovery Intelligence</h3>
+                  <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                    <div className="text-muted">Opportunity Score</div>
+                    <div className="text-right font-semibold text-primary">{selectedRecord.opportunity_score} / 100</div>
+                  </div>
+                  {selectedRecord.full_result?.recovery_analysis?.candidates && selectedRecord.full_result.recovery_analysis.candidates.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs text-muted mb-1">Generated Candidates:</div>
+                      {selectedRecord.full_result.recovery_analysis.candidates.map((c: any, i: number) => (
+                        <div key={i} className="flex justify-between bg-background border border-border rounded p-2 text-xs">
+                          <span className="font-mono">{c.action_type || c.action}</span>
+                          <div className="flex gap-3 text-muted">
+                            <span>EV: {formatINR(c.ev)}</span>
+                            <span>Time: {c.timing}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
+                </div>
+
+                <div className="h-px bg-border w-full" />
+
+                <div>
+                  <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">AI Recommendation</h3>
+                  <div className="bg-background rounded border border-border p-3 text-xs space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted">Action:</span>
+                      <span className="font-mono text-primary font-medium">{selectedRecord.selected_action || selectedRecord.full_result?.agent_decision?.selected_action || 'None'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted">Confidence:</span>
+                      <span>{((selectedRecord.agent_confidence || selectedRecord.full_result?.agent_decision?.confidence || 0) * 100).toFixed(1)}%</span>
+                    </div>
+                    
+                    {selectedRecord.full_result?.agent_decision?.reason && (
+                      <div>
+                        <div className="text-muted mb-1">Why this action:</div>
+                        <div className="italic">"{selectedRecord.full_result.agent_decision.reason}"</div>
+                      </div>
+                    )}
+                    
+                    {selectedRecord.full_result?.agent_decision?.relevant_signals?.length > 0 && (
+                      <div>
+                        <div className="text-muted mb-1">Relevant Signals:</div>
+                        <ul className="list-disc list-inside text-muted">
+                          {selectedRecord.full_result.agent_decision.relevant_signals.map((sig: string, i: number) => (
+                            <li key={i}>{sig}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {selectedRecord.full_result?.agent_decision?.context_summary && (
+                      <div>
+                        <div className="text-muted mb-1">Context Summary:</div>
+                        <div className="text-muted">{selectedRecord.full_result.agent_decision.context_summary}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="h-px bg-border w-full" />
@@ -273,15 +364,37 @@ export default function App() {
                       <span className="text-muted">Decision</span>
                       <StatusBadge status={selectedRecord.policy_allowed ? 'Allowed' : 'Blocked'} type="policy" />
                     </div>
+                    
+                    {selectedRecord.full_result?.policy_decision?.policy_version && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted">Version</span>
+                        <span className="font-mono text-xs">{selectedRecord.full_result.policy_decision.policy_version}</span>
+                      </div>
+                    )}
+                    
                     {!selectedRecord.policy_allowed && (
                       <div className="p-3 bg-danger/10 border border-danger/20 rounded text-danger text-xs flex gap-2 items-start">
                         <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
                         <span>{selectedRecord.policy_reason}</span>
                       </div>
                     )}
+
+                    {selectedRecord.full_result?.policy_decision?.violations?.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-muted text-xs mb-1">Violations:</div>
+                        <ul className="list-disc list-inside text-danger text-xs pl-1">
+                          {selectedRecord.full_result.policy_decision.violations.map((v: string, i: number) => (
+                            <li key={i}>{v}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center">
                       <span className="text-muted">Requires Escalation</span>
-                      <span>{selectedRecord.requires_escalation ? 'Yes' : 'No'}</span>
+                      <span className={selectedRecord.requires_escalation ? 'text-warning font-semibold' : ''}>
+                        {selectedRecord.requires_escalation ? 'Yes' : 'No'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -295,10 +408,12 @@ export default function App() {
                       <span className="text-muted">Status</span>
                       <StatusBadge status={selectedRecord.execution_status} type="execution" />
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted">Provider</span>
-                      <span className="font-mono text-xs">{selectedRecord.execution_provider}</span>
-                    </div>
+                    {selectedRecord.execution_status !== 'blocked' && selectedRecord.execution_provider !== 'none' && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted">Provider</span>
+                        <span className="font-mono text-xs">{selectedRecord.execution_provider}</span>
+                      </div>
+                    )}
                     {selectedRecord.execution_provider_reference && (
                       <div className="flex justify-between items-center">
                         <span className="text-muted">Reference</span>
@@ -307,10 +422,16 @@ export default function App() {
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between items-center pt-2">
+                    <div className="flex justify-between items-center pt-2 border-t border-border mt-2">
                       <span className="text-muted">Verification</span>
                       <StatusBadge status={selectedRecord.verification_status} type="verification" />
                     </div>
+                    {selectedRecord.recovered_amount > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted">Recovered</span>
+                        <span className="text-success font-semibold">{formatINR(selectedRecord.recovered_amount)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
