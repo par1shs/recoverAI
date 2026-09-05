@@ -4,18 +4,18 @@ RecoverAI helps merchants recover revenue from failed subscription payments usin
 
 > **Evaluation Caveat**: Results are measured on synthetic datasets modeled around the targeted failed-subscription-payment lifecycle. Separate development, held-out, and stress-test regimes are used to evaluate behavior and robustness. These results represent controlled simulation performance and are not claims of live-merchant performance.
 
-## Current Phase 2 Status
+## Current Phase 3 Status
 ### What is currently implemented:
-- Deterministic recovery analysis (Opportunity Score, EV, Timing heuristics).
-- Robust synthetic data generation and comprehensive evaluation across multiple regimes.
-- **RecoverAI Top-EV MVP (LLM stand-in)**: The current strategy deterministically selects the highest-EV candidate. 
-- **Deterministic Policy Engine**: A strict authorization layer. The LLM may recommend an action, but it cannot authorize or execute it. Policy rules enforce retry limits, autonomous amount limits, duplicate-event protection, payment-state checks, and safe escalation. **Policy failure defaults to deny.**
+- **Deterministic Recovery Layer**: Calculates opportunity score, candidate actions, Expected Value (EV), and timing heuristics.
+- **Robust synthetic data generation**: Evaluates across development, held-out, and stress regimes.
+- **LLM Recovery Agent**: Interprets customer messages, support notes, and structured customer context to intelligently select among existing candidates. *The LLM recommends; the Policy Engine authorizes.* It cannot create new recovery actions, modify financial calculations, bypass policy rules, or directly execute payments. Includes safe deterministic fallback behavior when the LLM is unavailable.
+- **Deterministic Policy Engine**: A strict authorization layer. The LLM may recommend an action, but it cannot authorize or execute it. Policy rules enforce limits and idempotency. **Policy failure defaults to deny.**
 
 ### What it does NOT do yet:
-- **No LLM Agent**: The LLM agent will be introduced in a later phase to interpret unstructured customer context and select among the deterministic candidate actions.
 - **No autonomous execution**.
 - **No Razorpay integration**.
 - **No production payment actions**.
+- **No frontend dashboard**.
 
 ## Policy Test Matrix
 | Condition | Proposed Action | Policy |
@@ -29,10 +29,20 @@ RecoverAI helps merchants recover revenue from failed subscription payments usin
 | Duplicate event | `retry_now` | BLOCK |
 | Unsupported action | `unknown` | BLOCK |
 
-## Architecture (Phase 2)
+## Architecture (Phase 3)
 
 ```text
-FAILED PAYMENT -> CONTEXT BUILDER -> DETERMINISTIC RECOVERY ANALYSIS -> LLM AGENT (Future) -> POLICY ENGINE -> EXECUTION (Future)
+FAILED PAYMENT
+     ↓
+CONTEXT BUILDER
+     ↓
+DETERMINISTIC RECOVERY ANALYSIS (Opportunity Score, Candidate Actions + EV + TIMING)
+     ↓
+LLM AGENT (Interprets context & selects candidate)
+     ↓
+POLICY ENGINE (Authorizes or Blocks)
+     ↓
+EXECUTION (Future)
 ```
 
 ## Quick Start (Phase 1)
