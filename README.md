@@ -74,6 +74,20 @@ API RESPONSE
 - The **Policy Engine** is the only component that can authorize execution. Policy failure defaults to **deny**.
 - **Execution ≠ Recovery**. Creating a payment link (HTTP 200) does not mean revenue was recovered.
 
+### Gemini configuration
+
+RecoverAI uses the real Gemini decision provider only when explicitly configured. Install the official SDK with `pip install -r requirements.txt`, then set these local environment values (or place them in the ignored `.env` file):
+
+```powershell
+$env:LLM_PROVIDER="gemini"
+$env:LLM_MODEL="gemini-3.8-flash"
+$env:GEMINI_API_KEY="your_gemini_api_key_here"
+```
+
+Gemini receives decision-time context and the deterministic candidate list, then recommends one supplied action through structured output. `FakeLLMProvider` remains the default for tests. Gemini never authorizes or executes a recovery: the deterministic Policy Engine remains the final authority.
+
+A one-call live smoke test with `gemini-3.8-flash` verified contextual selection of `retry_later` when `retry_now` was deliberately placed first for a customer who said they would be paid tomorrow. This is a limited integration check, not a large-scale production evaluation.
+
 ## API Endpoints
 
 | Method | Endpoint | Purpose |

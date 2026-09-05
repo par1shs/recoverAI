@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 
 class AgentDecision(BaseModel):
+    # Gemini structured output must not introduce fields outside this contract.
+    model_config = ConfigDict(extra="forbid")
     selected_action: Optional[str] = None
     reason: str
     relevant_signals: List[str] = Field(default_factory=list)

@@ -93,8 +93,57 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             raise Exception(f"OpenAI API Error: {str(e)}")
 
+
+class GeminiProvider(LLMProvider):
+    """Gemini implementation using the official Google GenAI SDK structured output API."""
+
+    def __init__(self) -> None:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set")
+
+        try:
+            from google import genai
+        except ImportError as exc:
+            raise ImportError(
+                "google-genai is required for LLM_PROVIDER=gemini"
+            ) from exc
+
+        self.client = genai.Client(api_key=api_key)
+        self.model = os.environ.get("LLM_MODEL", "gemini-3.8-flash")
+
+    def get_decision(self, context: AgentContext, system_prompt: str) -> AgentDecision:
+        """Request a schema-constrained recommendation from decision-time context only."""
+        prompt = f"{system_prompt}\n\nDecision-time context:\n{context.model_dump_json(indent=2)}"
+
+        try:
+            interaction = self.client.interactions.create(
+                model=self.model,
+                input=prompt,
+                response_format={
+                    "type": "text",
+                    "mime_type": "application/json",
+                    "schema": AgentDecision.model_json_schema(),
+                },
+            )
+            output_text = getattr(interaction, "output_text", None)
+            if not output_text:
+                raise ValueError("Gemini returned no structured output")
+
+            decision = AgentDecision.model_validate_json(output_text)
+            candidate_actions = {candidate.action for candidate in context.candidates}
+            if decision.selected_action not in candidate_actions:
+                raise ValueError(
+                    "Gemini selected an action outside the supplied candidate list"
+                )
+            return decision
+        except Exception as exc:
+            raise Exception(f"Gemini API Error: {str(exc)}") from exc
+
 def get_llm_provider() -> LLMProvider:
     provider_name = os.environ.get("LLM_PROVIDER", "fake").lower()
     if provider_name == "openai":
         return OpenAIProvider()
+    if provider_name == "gemini":
+        return GeminiProvider()
     return FakeLLMProvider()

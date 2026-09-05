@@ -8,6 +8,7 @@ class Settings:
     LLM_PROVIDER: str = "fake"
     LLM_MODEL: str = "gpt-4o-mini"
     LLM_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
     LLM_CONFIDENCE_THRESHOLD: float = 0.70
     
     # Execution
@@ -25,6 +26,7 @@ class Settings:
         self.LLM_PROVIDER = os.environ.get("LLM_PROVIDER", self.LLM_PROVIDER)
         self.LLM_MODEL = os.environ.get("LLM_MODEL", self.LLM_MODEL)
         self.LLM_API_KEY = os.environ.get("LLM_API_KEY", self.LLM_API_KEY)
+        self.GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", self.GEMINI_API_KEY)
         self.LLM_CONFIDENCE_THRESHOLD = float(os.environ.get("LLM_CONFIDENCE_THRESHOLD", str(self.LLM_CONFIDENCE_THRESHOLD)))
         self.EXECUTION_MODE = os.environ.get("EXECUTION_MODE", self.EXECUTION_MODE)
         self.RAZORPAY_MODE = os.environ.get("RAZORPAY_MODE", self.RAZORPAY_MODE)

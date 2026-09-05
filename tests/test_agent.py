@@ -152,7 +152,8 @@ def test_7_policy_has_final_authority(mock_get_provider):
         selected_action="retry_now", reason="Ignoring limits", confidence=0.9
     ))
     
-    result = process_failed_payment(record, state)
+    with patch("backend.execution.adapter.SimulatorExecutionAdapter.execute") as mock_execute:
+        result = process_failed_payment(record, state)
     
     # LLM actually recommended retry_now
     assert result["agent_decision"]["selected_action"] == "retry_now"
@@ -160,6 +161,8 @@ def test_7_policy_has_final_authority(mock_get_provider):
     # But policy engine BLOCKS it
     assert result["policy_decision"]["allowed"] is False
     assert result["policy_decision"]["requires_escalation"] is True
+    assert result["execution_result"]["status"] == "blocked"
+    mock_execute.assert_not_called()
 
 @patch("backend.agent.orchestrator.analyze_recovery")
 def test_8_no_candidates(mock_analyze):
