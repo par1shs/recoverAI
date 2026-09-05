@@ -1,2 +1,11 @@
-# Official Google GenAI SDK used when LLM_PROVIDER=gemini.
+# FastAPI runtime and schema validation.
+fastapi>=0.110
+uvicorn>=0.30
+pydantic>=2.0
+
+# Runtime configuration and database support.
+aiosqlite>=0.20
+python-dotenv>=1.0
+
+# Optional decision provider enabled with LLM_PROVIDER=gemini.
 google-genai>=1.0.0

@@ -10,7 +10,8 @@ RecoverAI helps merchants recover revenue from failed subscription payments usin
 # 1. Setup Backend
 python -m venv venv
 .\venv\Scripts\activate
-pip install pydantic pytest fastapi uvicorn httpx razorpay openai aiosqlite
+pip install -r requirements.txt
+pip install pytest httpx  # development/test dependencies
 
 # 2. Run backend tests (no API keys required)
 $env:PYTHONPATH="."
@@ -87,6 +88,24 @@ $env:GEMINI_API_KEY="your_gemini_api_key_here"
 Gemini receives decision-time context and the deterministic candidate list, then recommends one supplied action through structured output. `FakeLLMProvider` remains the default for tests. Gemini never authorizes or executes a recovery: the deterministic Policy Engine remains the final authority.
 
 A one-call live smoke test with `gemini-3.8-flash` verified contextual selection of `retry_later` when `retry_now` was deliberately placed first for a customer who said they would be paid tomorrow. This is a limited integration check, not a large-scale production evaluation.
+
+## Render Deployment
+
+Create a Render Web Service from this repository with the following commands:
+
+```text
+Build Command: pip install -r requirements.txt
+Start Command: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+```
+
+For an initial deployment, set these values in Render's **Environment** settings (never commit secrets):
+
+```text
+EXECUTION_MODE=simulator
+LLM_PROVIDER=fake
+```
+
+`PORT` is supplied by Render. `DATABASE_PATH` is optional and defaults to `recoverai.db`; the default filesystem is ephemeral, so attach a persistent disk and set `DATABASE_PATH` to a path on that disk if recovery records must survive deploys. Configure `LLM_PROVIDER=gemini`, `LLM_MODEL`, and `GEMINI_API_KEY` only when enabling Gemini; add API keys exclusively in Render Environment settings. `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are only needed for `EXECUTION_MODE=razorpay_test`.
 
 ## API Endpoints
 

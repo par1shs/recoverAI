@@ -1,6 +1,12 @@
 """RecoverAI — Configuration Module."""
 import os
 
+from dotenv import load_dotenv
+
+# Load ignored local development configuration without overriding deployment
+# environment variables supplied by Render or another hosting platform.
+load_dotenv()
+
 class Settings:
     """Centralized configuration from environment variables with safe defaults."""
     
