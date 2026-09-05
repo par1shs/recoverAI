@@ -69,7 +69,13 @@ EXECUTION_MODE=razorpay_test
 RAZORPAY_KEY_ID=your_test_id
 RAZORPAY_KEY_SECRET=your_test_secret
 ```
-*Never use production credentials. Blocked actions will never reach the execution adapter. Razorpay Test Mode is treated strictly as an execution provider and is not a decision-maker. Simulated integration produces appropriate pending or recovered states.*
+*Never use production credentials. Blocked actions will never reach the execution adapter. Razorpay Test Mode is treated strictly as an execution provider and is not a decision-maker.*
+
+**Razorpay Test Mode Actions:**
+- **payment_link**: Makes a real Razorpay Test Mode Payment Link API call. *Note: Creating a Payment Link is an execution event, not proof of recovered revenue. Recovery is determined separately by verification.*
+- **retry_now**: Only executed when a supported real Razorpay subscription/invoice operation can actually be performed. Otherwise fails safely instead of fabricating success.
+- **retry_later**: Recorded as scheduled/pending; no blocking scheduler.
+- **escalate / stop**: No payment API call.
 
 ### Configuring the Real OpenAI Provider
 For live demo cases, you can enable the real OpenAI API integration. This will call the OpenAI API (e.g. `gpt-4o-mini`) using Structured Outputs to enforce candidate selection.

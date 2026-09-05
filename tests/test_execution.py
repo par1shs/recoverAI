@@ -267,3 +267,96 @@ def test_13_end_to_end_audit_record(mock_provider):
     assert res["policy_decision"]["action"] == res["agent_decision"]["selected_action"]
     assert res["execution_result"]["action"] == res["policy_decision"]["action"]
     assert res["verification_result"]["action"] == res["execution_result"]["action"]
+
+@patch.dict(os.environ, {"RAZORPAY_KEY_ID": "test_id", "RAZORPAY_KEY_SECRET": "test_sec", "RAZORPAY_MODE": "test"})
+@patch("razorpay.Client")
+def test_14_razorpay_payment_link_success(mock_client_class):
+    from backend.razorpay.adapter import RazorpayExecutionAdapter
+    from backend.recovery.schemas import PaymentContext
+    
+    # Setup mock
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.payment_link.create.return_value = {
+        "id": "plink_test123",
+        "short_url": "https://rzp.io/i/test123url"
+    }
+    
+    adapter = RazorpayExecutionAdapter()
+    ctx = PaymentContext(amount=100.50, failure_type="test", retry_count=0, customer_tenure_months=1, previous_successes=0, previous_failures=0)
+    
+    res = adapter.execute("payment_link", ctx, "e14")
+    
+    assert res.status == "executed"
+    assert res.success is True
+    assert res.provider_reference == "plink_test123"
+    assert res.metadata["payment_link_url"] == "https://rzp.io/i/test123url"
+    
+    # Verify the request payload
+    mock_client.payment_link.create.assert_called_once()
+    payload = mock_client.payment_link.create.call_args[0][0]
+    assert payload["amount"] == 10050  # 100.50 * 100
+    assert payload["currency"] == "INR"
+    assert payload["reference_id"] == "e14"
+
+@patch.dict(os.environ, {"RAZORPAY_KEY_ID": "test_id", "RAZORPAY_KEY_SECRET": "test_sec", "RAZORPAY_MODE": "test"})
+@patch("razorpay.Client")
+def test_15_razorpay_payment_link_failure(mock_client_class):
+    from backend.razorpay.adapter import RazorpayExecutionAdapter
+    from backend.recovery.schemas import PaymentContext
+    
+    # Setup mock
+    mock_client = MagicMock()
+    mock_client_class.return_value = mock_client
+    mock_client.payment_link.create.side_effect = Exception("API rate limit exceeded")
+    
+    adapter = RazorpayExecutionAdapter()
+    ctx = PaymentContext(amount=100, failure_type="test", retry_count=0, customer_tenure_months=1, previous_successes=0, previous_failures=0)
+    
+    res = adapter.execute("payment_link", ctx, "e15")
+    
+    assert res.status == "failed"
+    assert res.success is False
+    assert "API rate limit" in res.message
+
+@patch.dict(os.environ, {"RAZORPAY_KEY_ID": "test_id", "RAZORPAY_KEY_SECRET": "test_sec", "RAZORPAY_MODE": "prod"})
+def test_16_razorpay_wrong_mode_fails():
+    from backend.razorpay.adapter import RazorpayExecutionAdapter
+    from backend.recovery.schemas import PaymentContext
+    
+    adapter = RazorpayExecutionAdapter()
+    ctx = PaymentContext(amount=100, failure_type="test", retry_count=0, customer_tenure_months=1, previous_successes=0, previous_failures=0)
+    
+    res = adapter.execute("payment_link", ctx, "e16")
+    
+    assert res.status == "failed"
+    assert res.success is False
+    assert "Configuration Error" in res.message
+
+@patch.dict(os.environ, {"RAZORPAY_KEY_ID": "test_id", "RAZORPAY_KEY_SECRET": "test_sec", "RAZORPAY_MODE": "test"})
+def test_17_razorpay_retry_now_fails_safely():
+    from backend.razorpay.adapter import RazorpayExecutionAdapter
+    from backend.recovery.schemas import PaymentContext
+    
+    adapter = RazorpayExecutionAdapter()
+    ctx = PaymentContext(amount=100, failure_type="test", retry_count=0, customer_tenure_months=1, previous_successes=0, previous_failures=0)
+    
+    res = adapter.execute("retry_now", ctx, "e17")
+    
+    assert res.status == "failed"
+    assert res.success is False
+    assert "no executable provider reference is available" in res.message
+
+@patch.dict(os.environ, {"RAZORPAY_KEY_ID": "test_id", "RAZORPAY_KEY_SECRET": "test_sec", "RAZORPAY_MODE": "test"})
+def test_18_razorpay_retry_later_scheduled():
+    from backend.razorpay.adapter import RazorpayExecutionAdapter
+    from backend.recovery.schemas import PaymentContext
+    
+    adapter = RazorpayExecutionAdapter()
+    ctx = PaymentContext(amount=100, failure_type="test", retry_count=0, customer_tenure_months=1, previous_successes=0, previous_failures=0)
+    
+    res = adapter.execute("retry_later", ctx, "e18")
+    
+    assert res.status == "scheduled"
+    assert res.success is True
+    assert "scheduled_for" in res.metadata
