@@ -8,7 +8,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import get_settings
-from backend.database import init_db, save_recovery_record, get_recovery_records, get_recovery_record_by_payment_id
+from backend.database import (
+    init_db, save_recovery_record, get_recovery_records,
+    get_recovery_record_by_payment_id, delete_recovery_records_by_payment_id,
+)
 from backend.api_schemas import (
     PaymentRequest, AnalyzeResponse, ExecuteResponse,
     CandidateActionResponse, AgentDecisionResponse, PolicyDecisionResponse,
@@ -334,6 +337,9 @@ def run_demo_scenario(scenario_name: str):
     scenario = get_scenario(scenario_name)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Unknown demo scenario: {scenario_name}")
-    
+
+    # Each scenario has a stable payment ID. Replacing its old record keeps the
+    # dashboard concise and makes repeated judge demos predictable.
+    delete_recovery_records_by_payment_id(scenario["request"]["payment_id"])
     req = PaymentRequest(**scenario["request"])
     return execute_recovery_endpoint(req)

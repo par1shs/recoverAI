@@ -86,6 +86,14 @@ def save_recovery_record(payment_id: str, customer_id: str, amount: float,
     conn.close()
     return row_id
 
+def delete_recovery_records_by_payment_id(payment_id: str, db_path: Optional[str] = None) -> None:
+    """Remove prior rows for a fixed demo payment ID before rerunning that demo."""
+    path = db_path or get_db_path()
+    conn = sqlite3.connect(path)
+    conn.execute("DELETE FROM recovery_records WHERE payment_id = ?", (payment_id,))
+    conn.commit()
+    conn.close()
+
 def get_recovery_records(limit: int = 50, db_path: Optional[str] = None) -> List[Dict[str, Any]]:
     """Retrieve recent recovery records."""
     path = db_path or get_db_path()

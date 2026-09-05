@@ -202,6 +202,13 @@ def test_demo_insufficient_funds(client):
     data = resp.json()
     assert data["failure_type"] == "insufficient_funds"
     assert len(data["candidate_actions"]) > 0
+    assert "retry_now" in [candidate["action"] for candidate in data["candidate_actions"]]
+
+def test_demo_replaces_prior_record_for_a_predictable_dashboard(client):
+    client.post("/api/v1/demos/insufficient_funds/execute")
+    client.post("/api/v1/demos/insufficient_funds/execute")
+    records = client.get("/api/v1/recoveries").json()
+    assert sum(record["payment_id"] == "pay_demo_insuf_001" for record in records) == 1
 
 
 # ─── 18. Demo Scenario B: Retry Limit Reached (safety) ──────────────────────

@@ -64,6 +64,18 @@ def test_valid_retryable_candidates():
     assert "retry_later" in action_types
     assert "payment_link" in action_types
 
+def test_insufficient_funds_keeps_immediate_retry_as_an_alternative():
+    ctx = PaymentContext(
+        amount=1000.0,
+        failure_type="insufficient_funds",
+        retry_count=0,
+        customer_tenure_months=12,
+        previous_successes=10,
+        previous_failures=0,
+    )
+    action_types = [candidate.action_type for candidate in generate_candidates(ctx)]
+    assert {"retry_now", "retry_later", "payment_link", "escalate"}.issubset(action_types)
+
 def test_ev_calculation_deterministic():
     ctx = PaymentContext(
         amount=1000.0,

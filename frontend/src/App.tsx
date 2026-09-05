@@ -44,9 +44,11 @@ export default function App() {
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [demos, setDemos] = useState<any>({});
   const [loadingDemo, setLoadingDemo] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
+      setError(null);
       const [h, recs, ds] = await Promise.all([
         fetchHealth(),
         fetchRecoveries(),
@@ -57,6 +59,7 @@ export default function App() {
       setDemos(ds);
     } catch (e) {
       console.error(e);
+      setError('Unable to reach the RecoverAI backend. Check that the API is running and VITE_API_BASE_URL is correct.');
     }
   };
 
@@ -70,17 +73,20 @@ export default function App() {
       setSelectedRecord(detail);
     } catch (e) {
       console.error(e);
+      setError('Unable to load this recovery record.');
     }
   };
 
   const handleRunDemo = async (scenarioId: string) => {
     setLoadingDemo(scenarioId);
     try {
+      setError(null);
       const res = await runDemoScenario(scenarioId);
       await loadData();
       await handleSelectRecord(res.payment_id);
     } catch (e) {
       console.error(e);
+      setError('The demo could not run. The backend did not return a recovery result.');
     } finally {
       setLoadingDemo(null);
     }
@@ -118,6 +124,12 @@ export default function App() {
       </header>
 
       <main className="flex-1 p-6 flex flex-col gap-6">
+        {error && (
+          <div role="alert" className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
         
         {/* Top Section: KPIs & Demos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -197,6 +209,18 @@ export default function App() {
                 icon={<Clock size={16}/>} 
               />
             </div>
+            {!selectedRecord.policy_allowed && (
+              <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+                <strong>Safety boundary held:</strong>
+                <span>AI recommends {selectedRecord.selected_action || 'an action'}</span>
+                <ArrowRight size={13} />
+                <span>Policy BLOCKED</span>
+                <ArrowRight size={13} />
+                <span>Execution NOT CALLED</span>
+                <ArrowRight size={13} />
+                <span>Escalation required</span>
+              </div>
+            )}
           </div>
         )}
 

@@ -15,7 +15,7 @@ DEMO_SCENARIOS: Dict[str, Dict[str, Any]] = {
             "customer_tenure_months": 18,
             "previous_successes": 15,
             "previous_failures": 1,
-            "customer_message": "I get paid tomorrow. Please don't cancel my subscription.",
+            "customer_message": "I get paid tomorrow. Please don't cancel my subscription. I can pay tomorrow.",
             "days_since_last_success": 30,
             "subscription_value": 999.0
         }

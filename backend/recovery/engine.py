@@ -68,7 +68,10 @@ def generate_candidates(context: PaymentContext) -> List[CandidateAction]:
     elif context.failure_type == "expired_card":
         possible_actions = ["payment_link", "escalate"]
     elif context.failure_type == "insufficient_funds":
-        possible_actions = ["retry_later", "payment_link", "escalate"]
+        # Keep an immediate retry as a valid but low-EV alternative.  This lets
+        # the decision provider demonstrate that the customer's stated timing
+        # matters, while deterministic EV and policy remain unchanged.
+        possible_actions = ["retry_now", "retry_later", "payment_link", "escalate"]
     elif context.failure_type == "temporary_bank_failure":
         possible_actions = ["retry_now", "retry_later", "payment_link"]
     else:
